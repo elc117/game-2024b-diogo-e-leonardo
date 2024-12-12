@@ -1,6 +1,7 @@
 package com.gamequiz.game;
 
 import com.badlogic.gdx.ApplicationAdapter;
+import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
@@ -13,9 +14,11 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.audio.Sound;
 
 public class Main extends ApplicationAdapter {
-    private enum GameState { JOGANDO, MENU }
-    private GameState estadoAtual;
-
+    public enum GameState { JOGANDO, MENU, MENUFINAL }
+    public GameState estadoAtual;
+    private Menu menu;
+    private MenuFinal menuFinal;
+    private Music somDeFundo;
     private SpriteBatch batch;
     private Texture image, personagem, inimigoTexture, balaTexture;
     private Texture[] sequenciaImagens; // 10 perguntas
@@ -34,20 +37,28 @@ public class Main extends ApplicationAdapter {
     private float tempoAtirando; // Controla o tempo que a textura de tiro aparece
     private float tempoUltimaResposta; // Controla o tempo desde a última colisão
     private boolean podeResponder; // Indica se a colisão está permitida
-    private Sound somAcerto;
-    private Sound somTiro; // Nenhum som funcionou aqui
+    private Music somAcerto;
+    private Sound somTiro; //
 
     @Override
     public void create() {
         batch = new SpriteBatch();
+        estadoAtual = GameState.MENU;
+        menu = new Menu(this);
+        menuFinal = new MenuFinal(this);
         image = new Texture("bg.png");
         personagem = new Texture("personagem.png");
         personagemAtirando = new Texture("personagemAtirando.png"); // Carregue a textura do personagem atirando
         balaTexture = new Texture("bala.png");
         sequenciaImagens = new Texture[10];
         inimigoTextures = new Texture[20];
-        somAcerto = Gdx.audio.newSound(Gdx.files.internal("acerto.mp3"));
+        somAcerto = Gdx.audio.newMusic(Gdx.files.internal("acerto.mp3"));
         somTiro = Gdx.audio.newSound(Gdx.files.internal("tiro.mp3"));
+        somDeFundo = Gdx.audio.newMusic(Gdx.files.internal("audiofundo.mp3"));
+        somDeFundo.setLooping(true);
+        somDeFundo.setVolume(0.5f);
+
+        somDeFundo.play();
 
 
         // Carregar imagens para os inimigos (20 diferentes)
@@ -67,7 +78,7 @@ public class Main extends ApplicationAdapter {
         posX = 0;
         posY = 275;
         tempoPassado = 0;
-        tempoUltimoTiro = 0;
+        tempoUltimoTiro = -2; // Estava bugando quando clicava em jogar no menu
         estaAtirando = false;
         tempoAtirando = 0;
         acertos = 0;
@@ -80,7 +91,6 @@ public class Main extends ApplicationAdapter {
         tempoUltimaResposta = 15; // Poder responder no início
         podeResponder = true;
 
-        estadoAtual = GameState.JOGANDO; // Começa jogando
     }
 
     @Override
@@ -92,11 +102,20 @@ public class Main extends ApplicationAdapter {
 
         if (estadoAtual == GameState.JOGANDO) {
             atualizarJogo(deltaTime);
-        } else if (estadoAtual == GameState.MENU) {
-            exibirMenu();
+        }
+        if (estadoAtual == GameState.MENU) {
+            menu.render();
+        }
+        if (estadoAtual == GameState.MENUFINAL) {
+            menuFinal.render();
         }
 
         batch.end();
+    }
+
+    public void startGame() {
+        estadoAtual = GameState.JOGANDO;
+        reiniciarJogo();
     }
 
     private void atualizarJogo(float deltaTime) {
@@ -131,16 +150,16 @@ public class Main extends ApplicationAdapter {
         if (Gdx.input.isButtonPressed(Input.Buttons.LEFT) && tempoUltimoTiro >= 0) {
             atirar();
             estaAtirando = true;
-            tempoUltimoTiro = 0;
+            tempoUltimoTiro = 0; // Pra resolver o bug do menu
         }
 
         verificarColisao();
 
         // Desenha o fundo
-        batch.draw(image, 0, 0);
+        batch.draw(image, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
 
         if (indiceImagem >= sequenciaImagens.length) {
-            estadoAtual = GameState.MENU;
+            estadoAtual = GameState.MENUFINAL;
             return;
         }
 
@@ -168,34 +187,13 @@ public class Main extends ApplicationAdapter {
 
         if (indiceImagem > 0 && indiceImagem <= sequenciaImagens.length) {
             Texture imagemAtual = sequenciaImagens[indiceImagem - 1];
-            batch.draw(imagemAtual, 0, 0);
+            batch.draw(imagemAtual, 0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         }
 
         font.draw(batch, "Acertos: " + acertos, 10, Gdx.graphics.getHeight() - 10);
     }
 
-    private void exibirMenu() {
-        // Fundo para o menu
-        batch.draw(image, 0, 0);
-
-        font.getData().setScale(2);
-        font.draw(batch, "Jogo Finalizado!", Gdx.graphics.getWidth() / 2 - 100, Gdx.graphics.getHeight() / 2 + 100);
-        font.draw(batch, "Acertos: " + acertos, Gdx.graphics.getWidth() / 2 - 50, Gdx.graphics.getHeight() / 2 + 50);
-        font.draw(batch, "Pressione R para reiniciar", Gdx.graphics.getWidth() / 2 - 120, Gdx.graphics.getHeight() / 2 - 50);
-        font.draw(batch, "Pressione Q para sair", Gdx.graphics.getWidth() / 2 - 100, Gdx.graphics.getHeight() / 2 - 100);
-        font.setColor(1, 0, 0, 1);
-
-
-        // Verifica se o jogador pressionou R ou Q
-        if (Gdx.input.isKeyPressed(Input.Keys.R)) {
-            reiniciarJogo();
-        } else if (Gdx.input.isKeyPressed(Input.Keys.Q)) {
-            Gdx.app.exit();
-        }
-    }
-
-
-    private void reiniciarJogo() {
+    public void reiniciarJogo() {
         indiceImagem = 0;
         acertos = 0;
         inimigos.clear();
@@ -218,21 +216,6 @@ public class Main extends ApplicationAdapter {
             textura.dispose();
         }
         font.dispose();
-    }
-
-    private void moverPersonagem() {
-        if (Gdx.input.isKeyPressed(Input.Keys.D) && posX < Gdx.graphics.getWidth() - personagem.getWidth()) {
-            posX += 200 * Gdx.graphics.getDeltaTime();
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.A) && posX > 0) {
-            posX -= 200 * Gdx.graphics.getDeltaTime();
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.W) && posY < Gdx.graphics.getHeight() - personagem.getHeight()) {
-            posY += 200 * Gdx.graphics.getDeltaTime();
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.S) && posY > 0) {
-            posY -= 200 * Gdx.graphics.getDeltaTime();
-        }
     }
 
     private void gerarInimigos() {
@@ -282,8 +265,8 @@ public class Main extends ApplicationAdapter {
                     // Verifica se a textura corresponde é a resposta certa
                     for (int k : new int[]{0, 3, 4, 7, 8, 10, 12, 15, 16}) { // Os indices começam em zero
                         if (texturaInimigo == inimigoTextures[k]) {
+                            somAcerto.play(); // Era pra estar tocando o som de acerto
                             acertos++;
-                            somAcerto.play(1.0f); // Era pra estar tocando o som de acerto
                             break;
                         } // Essa parte do código foi feita com auxílio do ChatGPT
                     }
@@ -297,6 +280,11 @@ public class Main extends ApplicationAdapter {
             }
         }
     }
+
+    public int getAcertos() {
+        return acertos; // armazena o numero de acertos
+    }
+
 
 
 }
