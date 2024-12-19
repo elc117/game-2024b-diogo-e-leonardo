@@ -6,7 +6,6 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.utils.ScreenUtils;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import java.util.ArrayList;
@@ -20,11 +19,10 @@ public class Main extends ApplicationAdapter {
     private MenuFinal menuFinal;
     private Music somDeFundo;
     private SpriteBatch batch;
-    private Texture image, personagem, inimigoTexture, balaTexture;
+    private Texture image, personagem, balaTexture;
     private Texture[] sequenciaImagens; // 10 perguntas
     private Texture[] inimigoTextures; // 20 imagens das respostas
     private int indiceImagem; // Índice da imagem atual das perguntas
-    private Sprite perso;
     private ArrayList<Sprite> inimigos;
     private ArrayList<Sprite> laser;
     private float posX, posY;
@@ -38,7 +36,9 @@ public class Main extends ApplicationAdapter {
     private float tempoUltimaResposta; // Controla o tempo desde a última colisão
     private boolean podeResponder; // Indica se a colisão está permitida
     private Music somAcerto;
-    private Sound somTiro; //
+    private Music somTiro; //
+    private int[] dificuldade;
+    private int tempoInimigos = 12;
 
     @Override
     public void create() {
@@ -53,13 +53,13 @@ public class Main extends ApplicationAdapter {
         sequenciaImagens = new Texture[10];
         inimigoTextures = new Texture[20];
         somAcerto = Gdx.audio.newMusic(Gdx.files.internal("acerto.mp3"));
-        somTiro = Gdx.audio.newSound(Gdx.files.internal("tiro.mp3"));
+        somTiro = Gdx.audio.newMusic(Gdx.files.internal("tiro.mp3"));
         somDeFundo = Gdx.audio.newMusic(Gdx.files.internal("audiofundo.mp3"));
+        dificuldade = new int[]{190, 240, 275};
         somDeFundo.setLooping(true);
         somDeFundo.setVolume(0.5f);
 
         somDeFundo.play();
-
 
         // Carregar imagens para os inimigos (20 diferentes)
         for (int i = 0; i < 20; i++) {
@@ -72,7 +72,6 @@ public class Main extends ApplicationAdapter {
         }
 
         indiceImagem = 0;
-        perso = new Sprite(personagem);
         inimigos = new ArrayList<>();
         laser = new ArrayList<>();
         posX = 0;
@@ -88,16 +87,14 @@ public class Main extends ApplicationAdapter {
         font = new BitmapFont();
         font.setColor(Color.WHITE);
 
-        tempoUltimaResposta = 15; // Poder responder no início
+        tempoUltimaResposta = tempoInimigos; // Poder responder no início
         podeResponder = true;
-
     }
 
     @Override
     public void render() {
         float deltaTime = Gdx.graphics.getDeltaTime();
 
-        ScreenUtils.clear(0.15f, 0.15f, 0.2f, 1f);
         batch.begin();
 
         if (estadoAtual == GameState.JOGANDO) {
@@ -124,7 +121,7 @@ public class Main extends ApplicationAdapter {
 
         if (!podeResponder) {
             tempoUltimaResposta += deltaTime;
-            if (tempoUltimaResposta >= 15) {
+            if (tempoUltimaResposta >= tempoInimigos) {
                 podeResponder = true;
             }
         }
@@ -138,7 +135,7 @@ public class Main extends ApplicationAdapter {
         }
 
         // Timer pra atualizar as perguntas
-        if (tempoPassado >= 15) {
+        if (tempoPassado >= tempoInimigos) {
             gerarInimigos();
             tempoPassado = 0;
         }
@@ -163,15 +160,27 @@ public class Main extends ApplicationAdapter {
             return;
         }
 
-        if (estaAtirando) {
-            batch.draw(personagemAtirando, posX, posY);
-        } else {
-            batch.draw(personagem, posX, posY);
+        batch.draw(estaAtirando ? personagemAtirando : personagem, posX, posY);
+
+        if(acertos < 3) {
+            for (Sprite inimigo : inimigos) {
+                inimigo.setX(inimigo.getX() - dificuldade[0] * deltaTime);
+                batch.draw(inimigo, inimigo.getX(), inimigo.getY());
+            }
         }
 
-        for (Sprite inimigo : inimigos) {
-            inimigo.setX(inimigo.getX() - 150 * deltaTime);
-            batch.draw(inimigo, inimigo.getX(), inimigo.getY());
+        if(acertos >= 3 && acertos < 5) {
+            for (Sprite inimigo : inimigos) {
+                inimigo.setX(inimigo.getX() - dificuldade[1] * deltaTime);
+                batch.draw(inimigo, inimigo.getX(), inimigo.getY());
+            }
+        }
+
+        if(acertos >= 5) { // aumenta velocidade dos inimigos conforme maior é o número de acertos
+            for (Sprite inimigo : inimigos) {
+                inimigo.setX(inimigo.getX() - (dificuldade[2] + (acertos - 5) * 5) * deltaTime);
+                batch.draw(inimigo, inimigo.getX(), inimigo.getY());
+            }
         }
 
         for (int i = 0; i < laser.size(); i++) {
@@ -194,6 +203,9 @@ public class Main extends ApplicationAdapter {
     }
 
     public void reiniciarJogo() {
+        tempoPassado = 0;
+        tempoUltimaResposta = tempoInimigos;
+        tempoUltimoTiro = -2;
         indiceImagem = 0;
         acertos = 0;
         inimigos.clear();
@@ -245,7 +257,8 @@ public class Main extends ApplicationAdapter {
         Sprite bala = new Sprite(balaTexture);
         bala.setPosition(posX + personagem.getWidth() - 75, posY + personagem.getHeight() - 9 - bala.getHeight());
         laser.add(bala);
-        somTiro.play(1.0f);
+        somTiro.setVolume(0.1f);
+        somTiro.play();
     }
 
     private boolean verificarColisao(Sprite inimigo, Sprite bala) {
@@ -284,7 +297,4 @@ public class Main extends ApplicationAdapter {
     public int getAcertos() {
         return acertos; // armazena o numero de acertos
     }
-
-
-
 }
