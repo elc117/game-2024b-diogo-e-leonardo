@@ -10,14 +10,12 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import java.util.ArrayList;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
-import com.badlogic.gdx.audio.Sound;
 
 public class Main extends ApplicationAdapter {
     public enum GameState { JOGANDO, MENU, MENUFINAL }
     public GameState estadoAtual;
     private Menu menu;
     private MenuFinal menuFinal;
-    private Music somDeFundo;
     private SpriteBatch batch;
     private Texture image, personagem, balaTexture;
     private Texture[] sequenciaImagens; // 10 perguntas
@@ -38,7 +36,7 @@ public class Main extends ApplicationAdapter {
     private Music somAcerto;
     private Music somTiro; //
     private int[] dificuldade;
-    private int tempoInimigos = 12;
+    private final int tempoInimigos = 12;
 
     @Override
     public void create() {
@@ -54,7 +52,7 @@ public class Main extends ApplicationAdapter {
         inimigoTextures = new Texture[20];
         somAcerto = Gdx.audio.newMusic(Gdx.files.internal("acerto.mp3"));
         somTiro = Gdx.audio.newMusic(Gdx.files.internal("tiro.mp3"));
-        somDeFundo = Gdx.audio.newMusic(Gdx.files.internal("audiofundo.mp3"));
+        Music somDeFundo = Gdx.audio.newMusic(Gdx.files.internal("audiofundo.mp3"));
         dificuldade = new int[]{190, 240, 275};
         somDeFundo.setLooping(true);
         somDeFundo.setVolume(0.5f);
@@ -141,8 +139,8 @@ public class Main extends ApplicationAdapter {
         }
 
         // Mover o personagem
-        posX = Gdx.input.getX() - personagem.getWidth() / 2;
-        posY = Gdx.graphics.getHeight() - Gdx.input.getY() - personagem.getHeight() / 2;
+        posX = Gdx.input.getX() - (float) personagem.getWidth() / 2;
+        posY = Gdx.graphics.getHeight() - Gdx.input.getY() - (float) personagem.getHeight() / 2;
 
         if (Gdx.input.isButtonPressed(Input.Buttons.LEFT) && tempoUltimoTiro >= 0) {
             atirar();
@@ -234,7 +232,7 @@ public class Main extends ApplicationAdapter {
         float posXInimigo1 = 1400;
         float posYInimigo1 = 200;
         float posXInimigo2 = 1400;
-        float posYInimigo2 = 500;
+        float posYInimigo2 = 400;
 
         for (int i = 0; i < 2; i++) {
             Texture inimigoTexture = inimigoTextures[indiceImagem * 2 + i];
